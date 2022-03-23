@@ -1,0 +1,20 @@
+[package]
+name = "async-stm"
+version = "0.1.0"
+edition = "2021"
+authors = ["Akosh Farkash <aakoshh@gmail.com>"]
+description = "Asynchronous Software Transactional Memory"
+keywords = ["stm", "async"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+parking_lot = "0.12.0"
+tokio = { version = "1.15.0", features = ["sync", "time"] }
+
+[dev-dependencies]
+tokio = { version = "1.15.0", features = ["macros", "rt-multi-thread"] }
+
+[features]
+default = ["queues"]
+queues = []
