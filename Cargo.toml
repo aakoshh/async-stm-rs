@@ -5,6 +5,9 @@ edition = "2021"
 authors = ["Akosh Farkash <aakoshh@gmail.com>"]
 description = "Asynchronous Software Transactional Memory"
 keywords = ["stm", "async"]
+license = "MIT"
+repository = "https://github.com/aakoshh/async-stm-rs"
+readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
