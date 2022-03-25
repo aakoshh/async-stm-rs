@@ -54,7 +54,7 @@ mod test {
         thread,
     };
 
-    use crate::aux::*;
+    use crate::auxtx::*;
     use crate::{
         abort, atomically, atomically_aux, atomically_or_err_aux, retry, test::TestError, TVar,
     };

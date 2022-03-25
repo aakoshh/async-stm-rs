@@ -1,4 +1,4 @@
-use crate::aux::*;
+use crate::auxtx::*;
 use crate::vars::{LVar, TVar, VVar, ID};
 use crate::version::{current_version, next_version, Version};
 use crate::{StmError, StmResult};

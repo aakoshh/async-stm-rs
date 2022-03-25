@@ -1,8 +1,7 @@
 use std::{error::Error, mem};
 
-use crate::aux::*;
+use crate::auxtx::*;
 use crate::{
-    aux::NoAux,
     transaction::{with_tx, Transaction, TX},
     StmDynError, StmDynResult, StmError, StmResult,
 };
@@ -73,8 +72,6 @@ where
 /// can be committed without running into version conflicts.
 ///
 /// Make sure `f` is free of any side effects, because it can be called repeatedly.
-///
-/// Nesting calls to `atomically` is not supported at the moment and will result in a panic.
 pub async fn atomically<F, T>(f: F) -> T
 where
     F: Fn() -> StmResult<T>,
@@ -101,8 +98,6 @@ where
 ///
 /// Make sure `f` is free of any side effects, becuase it can be called repeatedly
 /// and also be aborted.
-///
-/// Nesting calls to `atomically_or_err` is not supported at thed moment and will result in a panic.
 pub async fn atomically_or_err<F, T>(f: F) -> Result<T, Box<dyn Error + Send + Sync>>
 where
     F: Fn() -> StmDynResult<T>,

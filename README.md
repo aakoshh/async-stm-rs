@@ -9,7 +9,7 @@ It was also extended in the following ways:
 * Added the ability to `abort` a transaction with an error, which the caller has to handle.
 * The transaction is passed around in a thread-local variable, for a simplified `TVar` API.
 * Reading a `TVar` returns an `Arc`, so cloning can be delayed until we have to modify the result.
-* Added the option to pass in an [auxiliary transaction](src/aux.rs) that gets committed or rolled back together with the STM transaction, and can also cause cause a retry if it detects some conflict of its own. This is a potential way to have a hybrid persistent STM solution.
+* Added the option to pass in an [auxiliary transaction](src/auxtx.rs) that gets committed or rolled back together with the STM transaction, and can also cause a retry if it detects some conflict of its own. This is a potential way to have a hybrid persistent STM solution.
 * Added some optional [queue](src/queues) implementations based on Simon Marlow's book, _Parallel and Concurrent Programming in Haskell_.
 
 Please look at the [tests](src/test.rs) for example usage.

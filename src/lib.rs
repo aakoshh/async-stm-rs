@@ -4,11 +4,13 @@ extern crate test as etest;
 
 use std::error::Error;
 
-pub mod aux;
 mod ops;
 mod transaction;
 mod vars;
 mod version;
+
+/// Auxiliary transactions.
+pub mod auxtx;
 
 /// `TVar` is the public interface to lift data into the transactional
 /// context for subsequent read and write operations.
