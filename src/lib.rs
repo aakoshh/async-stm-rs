@@ -1,5 +1,7 @@
 // For benchmarks.
-#![feature(test)]
+#![cfg_attr(feature = "unstable", feature(test))]
+
+#[cfg(feature = "unstable")]
 extern crate test as etest;
 
 use std::error::Error;

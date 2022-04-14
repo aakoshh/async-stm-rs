@@ -23,7 +23,7 @@ Install the following to be be able to build the project:
 ```shell
 curl https://sh.rustup.rs -sSf | sh
 rustup toolchain install nightly
-rustup default nightly
+rustup default stable
 rustup update
 ```
 
@@ -32,7 +32,7 @@ rustup update
 There are benchmarks included to help compare the tradeoffs between the different queue implementations.
 
 ```shell
-cargo bench "bench" --all-features
+cargo +nightly bench "bench" --all-features
 ```
 
 ## See more

@@ -22,8 +22,6 @@ mod test {
     use std::time::Duration;
     use tokio::sync::mpsc::{self, UnboundedReceiver};
 
-    use etest::Bencher;
-
     use super::TQueueLike;
     use crate::atomically;
 
@@ -86,7 +84,16 @@ mod test {
         let is_empty = atomically(|| queue.is_empty()).await;
         assert!(!is_empty);
     }
+}
 
+#[cfg(all(test, feature = "unstable"))]
+mod bench {
+    use super::TQueueLike;
+    use crate::atomically;
+    use std::time::Duration;
+
+    #[cfg(all(test, feature = "unstable"))]
+    use etest::Bencher;
     // Benchmarks based on https://github.com/simonmar/parconc-examples/blob/master/chanbench.hs
 
     fn new_bench_runtime() -> tokio::runtime::Runtime {
@@ -194,47 +201,47 @@ macro_rules! test_queue_mod {
     ($make:expr) => {
         #[cfg(test)]
         mod test_queue {
-            use crate::queues::test as tq;
+            use $crate::queues::test::*;
 
             #[tokio::test]
             async fn write_and_read_back() {
-                tq::test_write_and_read_back($make).await;
+                test_write_and_read_back($make).await;
             }
 
             #[tokio::test]
             async fn threaded() {
-                tq::test_threaded($make).await;
+                test_threaded($make).await;
             }
 
             #[tokio::test]
             async fn is_empty() {
-                tq::test_is_empty($make).await;
+                test_is_empty($make).await;
             }
 
             #[tokio::test]
             async fn non_empty() {
-                tq::test_non_empty($make).await;
+                test_non_empty($make).await;
             }
         }
 
-        #[cfg(test)]
+        #[cfg(all(test, feature = "unstable"))]
         mod bench_queue {
-            use super::super::test as tq;
+            use super::super::bench::*;
             use etest::Bencher;
 
             #[bench]
             fn two_threads_read_write(b: &mut Bencher) {
-                tq::bench_two_threads_read_write(b, $make);
+                bench_two_threads_read_write(b, $make);
             }
 
             #[bench]
             fn one_thread_write_many_then_read(b: &mut Bencher) {
-                tq::bench_one_thread_write_many_then_read(b, $make);
+                bench_one_thread_write_many_then_read(b, $make);
             }
 
             #[bench]
             fn one_thread_repeat_write_read(b: &mut Bencher) {
-                tq::bench_one_thread_repeat_write_read(b, $make);
+                bench_one_thread_repeat_write_read(b, $make);
             }
         }
     };

@@ -15,13 +15,19 @@ readme = "README.md"
 parking_lot = "0.12.0"
 tokio = { version = "1.15.0", features = ["sync", "time"] }
 
-# Pinning this due to https://github.com/Amanieu/parking_lot/blob/master/Cargo.toml
-# until I am able to remove the rust-toolchain.toml with the nightly restriction.
-lock_api = "=0.4.6"
-
 [dev-dependencies]
 tokio = { version = "1.15.0", features = ["macros", "rt-multi-thread"] }
 
 [features]
 default = ["queues"]
 queues = []
+
+# For running benchmarks, which require nightly.
+# Unfortunately tests fail on nightly since `rustc 1.61.0-nightly (8769f4ef2 2022-03-02)`
+# during the linking phase. They work on `rustc 1.61.0-nightly (532d3cda9 2022-02-23)`,
+# but the `lock_api` 0.4.7 fails on that one. Luckily the build and tests both work on
+# stable, so if we reserve nightly for benches, it should be fine.
+# Meanwhile if we use nightly, we can use `cargo +stable test` to run tests,
+# and `cargo --features "unstable" bench` to run benches.
+# TODO: Move benchmarks under the `benches` directory.
+unstable = []

@@ -1,8 +1,0 @@
-[toolchain]
-# `rustup show` indicates this is `rustc 1.61.0-nightly (532d3cda9 2022-02-23)`
-# yet with `rustc 1.61.0-nightly (8769f4ef2 2022-03-02)` the STM module tests
-# fail to build during the linking phase. Fixing until the issue is resolved
-# by a newer version, or we find the reason for the error.
-# Currently the stable release is 1.59.0 which came out on 2022-02-23,
-# but we need nightly for benches.
-channel = "nightly-2022-02-24"
