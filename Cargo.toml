@@ -15,6 +15,10 @@ readme = "README.md"
 parking_lot = "0.12.0"
 tokio = { version = "1.15.0", features = ["sync", "time"] }
 
+# Pinning this due to https://github.com/Amanieu/parking_lot/blob/master/Cargo.toml
+# until I am able to remove the rust-toolchain.toml with the nightly restriction.
+lock_api = "=0.4.6"
+
 [dev-dependencies]
 tokio = { version = "1.15.0", features = ["macros", "rt-multi-thread"] }
 
