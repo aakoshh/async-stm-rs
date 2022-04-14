@@ -220,15 +220,15 @@ impl Transaction {
         if read_log.is_empty() {
             tokio::time::sleep(self.empty_retry_wait_timeout).await;
         } else {
-            let _ = rx.recv().await;
+            // Wait for a true signal; ignore pruning attempts from over subscribed variables.
+            while let Some(false) = rx.recv().await {}
+            // NOTE: Here we could deregister from the wait queues, but that would require
+            // taking out the locks again. Since the notifiers take locks too to increment
+            // the version, let them do the clean up. One side effect is that a thread
+            // may be unparked some variable that changes less frequently, which still
+            // remembers it with an obsolete notification flag. In this case the thread
+            // will just park itself again.
         }
-
-        // NOTE: Here we could deregister from the wait queues, but that would require
-        // taking out the locks again. Since the notifiers take locks too to increment
-        // the version, let them do the clean up. One side effect is that a thread
-        // may be unparked some variable that changes less frequently, which still
-        // remembers it with an obsolete notification flag. In this case the thread
-        // will just park itself again.
     }
 
     /// Unpark any thread waiting on any of the modified `TVar`s.

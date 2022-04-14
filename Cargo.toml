@@ -1,6 +1,6 @@
 [package]
 name = "async-stm"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["Akosh Farkash <aakoshh@gmail.com>"]
 description = "Asynchronous Software Transactional Memory"

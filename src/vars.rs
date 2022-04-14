@@ -39,7 +39,12 @@ impl VVar {
 }
 
 /// Using a channel to wake up tasks when a `TVar` they read changed.
-type Signaler = tokio::sync::mpsc::UnboundedSender<()>;
+///
+/// Sending `true` means the associated `TVar` has been updated.
+/// Sending `false` means there are too many subscribers on a variable
+/// that doesn't seem to be written to. In this case any listeners still
+/// alive can re-subscribe.
+type Signaler = tokio::sync::mpsc::UnboundedSender<bool>;
 
 pub struct WaitQueue {
     /// Store the last version which was written to avoid race condition where the notification
@@ -57,6 +62,9 @@ pub struct WaitQueue {
 
     /// Signalers for tasks waiting for the `TVar` to get an update.
     waiting: Vec<Signaler>,
+
+    /// Highest number of transactions waiting we have encountered so far.
+    max_waiting: usize,
 }
 
 impl WaitQueue {
@@ -64,13 +72,17 @@ impl WaitQueue {
         WaitQueue {
             last_written_version: Default::default(),
             waiting: Vec::new(),
+            max_waiting: 1,
         }
     }
 
+    /// Register a transaction as waiting for this `TVar` to be updated.
     pub fn add(&mut self, s: Signaler) {
+        self.prune();
         self.waiting.push(s)
     }
 
+    /// Signal to all waiting transactions that this `TVar` has been updated.
     pub fn notify_all(&mut self, commit_version: Version) {
         self.last_written_version = commit_version;
 
@@ -81,7 +93,20 @@ impl WaitQueue {
         let waiting = mem::take(&mut self.waiting);
 
         for tx in waiting {
-            let _ = tx.send(());
+            let _ = tx.send(true);
+        }
+    }
+
+    /// Whenever we see the length of the waiting queue hit a new record,
+    /// remove any waiting signalers that already had their receiver closed,
+    /// which means some other `TVar` they subscribed to has been updated.
+    ///
+    /// This is to avoid memory leaks in the wait queue of a `TVar` which
+    /// is frequently read but never written to.
+    fn prune(&mut self) {
+        if self.waiting.len() > self.max_waiting {
+            self.waiting.retain(|tx| tx.send(false).is_ok());
+            self.max_waiting = self.max_waiting.max(self.waiting.len());
         }
     }
 }
