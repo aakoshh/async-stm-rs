@@ -2,33 +2,21 @@
 /// unless the STM transaction is aborted or has to be retried, in which case
 /// the auxiliary transaction is rolled back.
 ///
-/// One potential use case is to model the account state as a Sparse Merkle trie
-/// backed by a key-value store, and accumulate writes during the execution of
-/// a block in-memory, then when the commit comes, instead of flushing the changes
-/// to disk, we could keep the changeset in memory until the block is finalised.
+/// The auxiliary transaction can also signal that its is unable to be committed,
+/// in which case the whole atomic transaction will be retried.
 ///
-/// To manage the tree of changesets, we can create new instances of the `Aux`
-/// construct before passing it to the block execution, where the instance
-/// would be the new leaf, and `commit` just writes to its in-memory staging area.
-/// This way we don't have to return any value from `commit`, to represent the
-/// changeset.
-///
-/// When a block is finalised, we can take the root of the changeset tree and
-/// apply it for real on the database, and discard any orphans.
+/// The database is not expected to return an error here, because of how `Transaction::commit` works.
+/// If there is a failure that needs to be surfaced, at the moment the database would have to buffer
+/// that error and return it on a subsequent operation, mapped to an `StmError::Abort`.
 pub trait Aux {
-    type Prepared: AuxPrepared;
-    /// Prepare for commit. If the transaction cannot be committed, roll it back and return `None`,
-    /// in which case the STM transaction will be retried. This is an optimisation to delay taking
-    /// out any exclusive locks.
-    fn prepare(self) -> Option<Self::Prepared>;
+    /// Commit the auxiliary transaction if the STM transaction did not detect any errors.
+    /// The STM transaction is checked first, because committing the database involves IO
+    /// and is expected to be slower.
+    ///
+    /// Return `false` if there are write conflicts in the persistent database itself,
+    /// to cause a complete retry for the whole transaction.
+    fn commit(self) -> bool;
     /// Rollback the auxiliary transaction if the STM transaction was aborted, or it's going to be retried.
-    fn rollback(self);
-}
-
-pub trait AuxPrepared {
-    /// Commit the auxiliary transaction if the STM transaction succeeded.
-    fn commit(self);
-    /// Rollback the auxiliary transaction if the STM transaction is going to be retried.
     fn rollback(self);
 }
 
@@ -36,14 +24,9 @@ pub trait AuxPrepared {
 pub(crate) struct NoAux;
 
 impl Aux for NoAux {
-    type Prepared = Self;
-    fn prepare(self) -> Option<Self> {
-        Some(self)
+    fn commit(self) -> bool {
+        true
     }
-    fn rollback(self) {}
-}
-impl AuxPrepared for NoAux {
-    fn commit(self) {}
     fn rollback(self) {}
 }
 
@@ -81,25 +64,14 @@ mod test {
     }
 
     impl<'a> Aux for TestAuxTx<'a> {
-        type Prepared = Self;
-        fn prepare(self) -> Option<Self> {
-            Some(self)
-        }
-
-        fn rollback(mut self) {
-            self.finished = true;
-        }
-    }
-
-    impl<'a> AuxPrepared for TestAuxTx<'a> {
-        fn commit(mut self) {
+        fn commit(mut self) -> bool {
             let mut guard = self.db.counter.lock().unwrap();
             *guard = self.counter;
             self.finished = true;
+            true
         }
-
-        fn rollback(self) {
-            Aux::rollback(self)
+        fn rollback(mut self) {
+            self.finished = true;
         }
     }
 
@@ -173,6 +145,9 @@ mod test {
         });
 
         let _ = receiver.recv().await;
+        assert_eq!(db.counter(), 1);
+
+        // Writing a value to `ta` will trigger the retry.
         atomically(|| ta.write(10)).await;
         handle.await.unwrap();
 

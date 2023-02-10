@@ -130,55 +130,59 @@ impl Transaction {
     /// while the locks are being held, so there's no gap where the two datasets
     /// are inconsistent.
     pub(crate) fn commit<X: Aux>(&self, atx: X) -> Option<Version> {
-        atx.prepare().and_then(|atx| {
-            let commit = |atx: X::Prepared, version| {
-                atx.commit();
+        let commit = |atx: X, inc: bool| {
+            if atx.commit() {
+                // Incrementing after locks are taken; if it only differs by one, no other transaction took place;
+                // but we already checked for conflicts, it looks like at this point there's no way to use this info.
+                let version = if inc { next_version() } else { self.version };
                 Some(version)
-            };
-
-            let rollback = |atx: X::Prepared| {
-                atx.rollback();
+            } else {
                 None
-            };
-
-            // If there were no writes, then the read would have already detected conflicts when their
-            // values were retrieved. We can go ahead and just return without locking again.
-            if !self.has_writes {
-                return commit(atx, self.version);
             }
+        };
 
-            // Acquire write locks to all values written in the transaction, read locks for the rest,
-            // but do this in the deterministic order of IDs to avoid deadlocks.
-            let mut write_locks = Vec::new();
-            let mut read_locks = Vec::new();
+        let rollback = |atx: X| {
+            atx.rollback();
+            None
+        };
 
-            for (_, lvar) in self.log.iter() {
-                if lvar.write {
-                    let lock = lvar.svar.vvar.write();
-                    if lock.version > lvar.vvar.version {
-                        return rollback(atx);
-                    }
-                    write_locks.push((lvar, lock));
-                } else {
-                    let lock = lvar.svar.vvar.read();
-                    if lock.version > lvar.vvar.version {
-                        return rollback(atx);
-                    }
-                    read_locks.push(lock);
+        // If there were no writes, then the read would have already detected conflicts when their
+        // values were retrieved. We can go ahead and just return without locking again.
+        if !self.has_writes {
+            return commit(atx, false);
+        }
+
+        // Acquire write locks to all values written in the transaction, read locks for the rest,
+        // but do this in the deterministic order of IDs to avoid deadlocks.
+        let mut write_locks = Vec::new();
+        let mut read_locks = Vec::new();
+
+        for (_, lvar) in self.log.iter() {
+            if lvar.write {
+                let lock = lvar.svar.vvar.write();
+                if lock.version > lvar.vvar.version {
+                    return rollback(atx);
                 }
+                write_locks.push((lvar, lock));
+            } else {
+                let lock = lvar.svar.vvar.read();
+                if lock.version > lvar.vvar.version {
+                    return rollback(atx);
+                }
+                read_locks.push(lock);
             }
+        }
 
-            // Incrementing after locks are taken; if it only differs by one, no other transaction took place;
-            // but we already checked for conflicts, it looks like at this point there's no way to use this info.
-            let commit_version = next_version();
-
+        // See if the auxiliary transaction can be committed first, while we hold all the in-memory locks.
+        if let Some(commit_version) = commit(atx, true) {
             for (lvar, mut lock) in write_locks {
                 lock.version = commit_version;
                 lock.value = lvar.vvar.value.clone();
             }
-
-            commit(atx, commit_version)
-        })
+            return Some(commit_version);
+        } else {
+            return None;
+        }
     }
 
     /// For each variable that the transaction has read, subscribe to future
