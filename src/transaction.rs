@@ -179,9 +179,9 @@ impl Transaction {
                 lock.version = commit_version;
                 lock.value = lvar.vvar.value.clone();
             }
-            return Some(commit_version);
+            Some(commit_version)
         } else {
-            return None;
+            None
         }
     }
 

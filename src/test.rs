@@ -182,7 +182,7 @@ async fn nested_atomically() {
     .await;
 
     assert_eq!(*atomically(|| { x.read() }).await, 1);
-    let _ = a.await;
+    a.await;
     assert_eq!(*atomically(|| { x.read() }).await, 2);
 }
 
@@ -201,9 +201,12 @@ fn write_outside_atomically() {
 #[tokio::test]
 async fn nested_abort() {
     let r = TVar::new(0);
-    let show = |label| Ok(println!("{}: r = {}", label, r.read()?));
+    let show = |label| {
+        println!("{}: r = {}", label, r.read()?);
+        Ok(())
+    };
     let add1 = |x: i32| x + 1;
-    let abort = || retry();
+    let abort = retry;
 
     fn nested<F>(f: F) -> StmResult<()>
     where

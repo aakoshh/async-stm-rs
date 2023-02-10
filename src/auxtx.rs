@@ -128,11 +128,11 @@ mod test {
         let tac = ta.clone();
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
         let handle = tokio::spawn(async move {
-            let _ = atomically_aux(
+            atomically_aux(
                 || dbc.begin(),
                 |atx| {
                     let a = tac.read()?;
-                    atx.counter = atx.counter + *a;
+                    atx.counter += *a;
                     if *a == 42 {
                         // Signal that we are entering the retry.
                         sender.send(()).unwrap();
