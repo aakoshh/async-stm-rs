@@ -146,6 +146,15 @@ pub struct TVar<T> {
     phantom: PhantomData<T>,
 }
 
+impl<T> Default for TVar<T>
+where
+    T: Any + Sync + Send + Clone + Default,
+{
+    fn default() -> Self {
+        Self::new(Default::default())
+    }
+}
+
 impl<T: Any + Sync + Send + Clone> TVar<T> {
     /// Create a new `TVar`. The initial version is 0, so that if a
     /// `TVar` is created in the middle of a transaction it will
