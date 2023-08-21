@@ -102,29 +102,25 @@ jobs:
           name: Print version information
           command: rustc --version; cargo --version
 
+      # See here for how to allow certain lints to not fail the build:
+      # https://github.com/rust-lang/rust-clippy
       - run:
-          name: Check code formatting
-          command: cargo fmt --all -- --check
+          name: Check code formatting and clippy
+          command: make lint
 
       - run:
           name: Build all
           environment:
             RUSTFLAGS: -D warnings
             CARGO_INCREMENTAL: 0
-          command: cargo build --all-targets --features "queues"
-
-      # See here for how to allow certain lints to not fail the build:
-      # https://github.com/rust-lang/rust-clippy
-      - run:
-          name: Check clippy warnings
-          command: cargo clippy --features "queues" -- -D clippy::all
+          command: make build
 
       - run:
           name: Run tests
           environment:
             RUST_BACKTRACE: 1
             CARGO_INCREMENTAL: 0
-          command: cargo test --features "queues"
+          command: make test
 
 # Invoke jobs via workflows
 # See: https://circleci.com/docs/2.0/configuration-reference/#workflows
