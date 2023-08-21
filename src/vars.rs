@@ -196,8 +196,18 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
     where
         F: FnOnce(T) -> T,
     {
-        let v = self.read()?;
-        self.write(f(v.as_ref().clone()))
+        let v = self.read_clone()?;
+        self.write(f(v))
+    }
+
+    /// Apply an update on the value of the `TVar`. Only call this inside `atomically`.
+    pub fn update_mut<F>(&self, f: F) -> StmResult<()>
+    where
+        F: FnOnce(&mut T),
+    {
+        let mut v = self.read_clone()?;
+        f(&mut v);
+        self.write(v)
     }
 
     /// Apply an update on the value of the `TVar` and return a value. Only call this inside `atomically`.
@@ -205,9 +215,20 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
     where
         F: FnOnce(T) -> (T, R),
     {
-        let v = self.read()?;
-        let (w, r) = f(v.as_ref().clone());
+        let v = self.read_clone()?;
+        let (w, r) = f(v);
         self.write(w)?;
+        Ok(r)
+    }
+
+    /// Apply an update on the value of the `TVar` and return a value. Only call this inside `atomically`.
+    pub fn modify_mut<F, R>(&self, f: F) -> StmResult<R>
+    where
+        F: FnOnce(&mut T) -> R,
+    {
+        let mut v = self.read_clone()?;
+        let r = f(&mut v);
+        self.write(v)?;
         Ok(r)
     }
 
