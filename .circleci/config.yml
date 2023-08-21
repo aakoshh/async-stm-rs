@@ -9,7 +9,7 @@ executors:
     #      https://circleci.com/developer/images/image/cimg/rust
     #      https://github.com/rust-lang/docker-rust-nightly
     docker:
-      - image: cimg/rust:1.60
+      - image: cimg/rust:1.69
     working_directory: /home/circleci/build
 
 # Define a job to be invoked later in a workflow.
