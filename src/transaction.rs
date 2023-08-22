@@ -1,7 +1,7 @@
-use crate::auxtx::*;
 use crate::vars::{LVar, TVar, VVar, ID};
 use crate::version::{current_version, next_version, Version};
-use crate::{StmError, StmResult};
+use crate::StmResult;
+use crate::{auxtx::*, StmControlError};
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -74,7 +74,7 @@ impl Transaction {
                 if guard.version > self.version {
                     // The TVar has been written to since we started this transaction.
                     // There is no point carrying on with the rest of it, but we can retry.
-                    Err(StmError::Failure)
+                    Err(StmControlError::Failure)
                 } else {
                     self.log.insert(
                         tvar.id,

@@ -39,7 +39,7 @@ mod test {
 
     use crate::auxtx::*;
     use crate::{
-        abort, atomically, atomically_aux, atomically_or_err_aux, retry, test::TestError, TVar,
+        abort, atomically, atomically_aux, atomically_or_err_aux, retry, test::TestError1, TVar,
     };
 
     #[derive(Clone)]
@@ -99,11 +99,11 @@ mod test {
     async fn aux_commit_rollback() {
         let db = TestAuxDb::new();
 
-        atomically_or_err_aux(
+        atomically_or_err_aux::<_, TestError1, _, _, _>(
             || db.begin(),
             |atx| {
                 atx.counter = 1;
-                abort(TestError)?;
+                abort(TestError1)?;
                 Ok(())
             },
         )

@@ -241,30 +241,39 @@ async fn nested_abort() {
     assert_eq!(*v, 3);
 }
 
-#[derive(Debug, Clone)]
-pub struct TestError;
+// One kind of error.
+#[derive(thiserror::Error, Debug)]
+#[error("test error instance")]
+pub struct TestError1;
 
-impl std::fmt::Display for TestError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "test error instance")
-    }
+// Another kind of unrelated error.
+#[derive(thiserror::Error, Debug)]
+#[error("another error instance")]
+pub struct TestError2;
+
+// An error type unifying both.
+#[derive(thiserror::Error, Debug)]
+pub enum TestError {
+    #[error("error 1: {0}")]
+    Error1(#[from] TestError1),
+    #[error("error 2: {0}")]
+    Error2(#[from] TestError2),
 }
-
-impl Error for TestError {}
 
 #[tokio::test]
 async fn abort_with_error() {
     let a = TVar::new(0);
 
-    let r = atomically_or_err(|| {
+    let r: Result<(), TestError> = atomically_or_err(|| {
         a.write(1)?;
-        abort(TestError)?;
+        abort(TestError1)?;
+        abort(TestError2)?;
         Ok(())
     })
     .await;
 
     assert_eq!(
         r.err().map(|e| e.to_string()),
-        Some("test error instance".to_owned())
+        Some("error 1: test error instance".to_owned())
     );
 }
