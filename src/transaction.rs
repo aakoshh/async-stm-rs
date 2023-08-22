@@ -1,7 +1,7 @@
 use crate::vars::{LVar, TVar, VVar, ID};
 use crate::version::{current_version, next_version, Version};
-use crate::StmResult;
-use crate::{auxtx::*, StmControlError};
+use crate::Stm;
+use crate::{auxtx::*, StmControl};
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::BTreeMap;
@@ -66,7 +66,7 @@ impl Transaction {
     /// If it has changed since the beginning of the transaction,
     /// return a failure immediately, because we are not reading
     /// a consistent snapshot.
-    pub fn read<T: Any + Sync + Send>(&mut self, tvar: &TVar<T>) -> StmResult<Arc<T>> {
+    pub fn read<T: Any + Sync + Send>(&mut self, tvar: &TVar<T>) -> Stm<Arc<T>> {
         match self.log.get(&tvar.id) {
             Some(lvar) => Ok(lvar.vvar.downcast()),
             None => {
@@ -74,7 +74,7 @@ impl Transaction {
                 if guard.version > self.version {
                     // The TVar has been written to since we started this transaction.
                     // There is no point carrying on with the rest of it, but we can retry.
-                    Err(StmControlError::Failure)
+                    Err(StmControl::Failure)
                 } else {
                     self.log.insert(
                         tvar.id,
@@ -94,7 +94,7 @@ impl Transaction {
     /// Write a value into the local store. If it has not been read
     /// before, just insert it with the version at the start of the
     /// transaction.
-    pub fn write<T: Any + Sync + Send>(&mut self, tvar: &TVar<T>, value: T) -> StmResult<()> {
+    pub fn write<T: Any + Sync + Send>(&mut self, tvar: &TVar<T>, value: T) -> Stm<()> {
         match self.log.get_mut(&tvar.id) {
             Some(lvar) => {
                 lvar.write = true;

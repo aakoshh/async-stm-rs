@@ -208,9 +208,9 @@ async fn nested_abort() {
     let add1 = |x: i32| x + 1;
     let abort = retry;
 
-    fn nested<F>(f: F) -> StmResult<()>
+    fn nested<F>(f: F) -> Stm<()>
     where
-        F: FnOnce() -> StmResult<()>,
+        F: FnOnce() -> Stm<()>,
     {
         or(f, || Ok(()))
     }

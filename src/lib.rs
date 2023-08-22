@@ -26,7 +26,7 @@ pub use ops::{
 pub mod queues;
 
 /// Transaction shortcutting signals handled by the STM framework.
-pub enum StmControlError {
+pub enum StmControl {
     /// The transaction failed because a value changed.
     /// It can be retried straight away.
     Failure,
@@ -40,29 +40,29 @@ pub enum StmControlError {
 /// with an error. It is separate so that we rest assured
 /// that [atomically] will not return an error, that only
 /// [atomically_or_err] allows abortions.
-pub enum StmError<T> {
+pub enum StmError<E> {
     /// Regular error.
-    Control(StmControlError),
+    Control(StmControl),
     /// Abort the transaction and return an error.
-    Abort(T),
+    Abort(E),
 }
 
-/// Conversion to allow mixing methods returning [StmResult]
-/// with ones returning [StmAbortable] using the `?` operator.
-impl<E> From<StmControlError> for StmError<E> {
-    fn from(e: StmControlError) -> Self {
+/// Conversion to allow mixing methods returning [Stm]
+/// with ones returning [StmResult] using the `?` operator.
+impl<E> From<StmControl> for StmError<E> {
+    fn from(e: StmControl) -> Self {
         StmError::Control(e)
     }
 }
 
 /// Type returned by STM methods that cannot be aborted,
 /// the only reason they can fail is to be retried.
-pub type StmResult<T> = Result<T, StmControlError>;
+pub type Stm<T> = Result<T, StmControl>;
 
 /// Type returned by STM methods that can be aborted with an error.
 ///
 /// Such methods must be executed with [atomically_or_err].
-pub type StmAbortable<T, E> = Result<T, StmError<E>>;
+pub type StmResult<T, E> = Result<T, StmError<E>>;
 
 #[cfg(test)]
 mod test;

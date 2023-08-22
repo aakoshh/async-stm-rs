@@ -1,18 +1,18 @@
 use std::mem;
 
-use crate::{auxtx::*, StmControlError};
+use crate::{auxtx::*, StmControl};
 use crate::{
     transaction::{with_tx, Transaction, TX},
-    StmAbortable, StmError, StmResult,
+    Stm, StmError, StmResult,
 };
 
 /// Abandon the transaction and retry after some of the variables read have changed.
-pub fn retry<T>() -> StmResult<T> {
-    Err(StmControlError::Retry)
+pub fn retry<T>() -> Stm<T> {
+    Err(StmControl::Retry)
 }
 
 /// Retry unless a given condition has been met.
-pub fn guard(cond: bool) -> StmResult<()> {
+pub fn guard(cond: bool) -> Stm<()> {
     if cond {
         Ok(())
     } else {
@@ -22,8 +22,8 @@ pub fn guard(cond: bool) -> StmResult<()> {
 
 /// Abort the transaction with an error.
 ///
-/// Use this with [atomically_or_err] and a method that returns [StmAbortable] instead of [StmResult].
-pub fn abort<T, E1, E2>(e: E1) -> StmAbortable<T, E2>
+/// Use this with [atomically_or_err] and a method that returns [StmResult] instead of [Stm].
+pub fn abort<T, E1, E2>(e: E1) -> StmResult<T, E2>
 where
     E1: Into<E2>,
 {
@@ -37,22 +37,22 @@ where
 ///
 /// If they return `Failure` then just return that result,
 /// since the transaction can be retried right now.
-pub fn or<F, G, T>(f: F, g: G) -> StmResult<T>
+pub fn or<F, G, T>(f: F, g: G) -> Stm<T>
 where
-    F: FnOnce() -> StmResult<T>,
-    G: FnOnce() -> StmResult<T>,
+    F: FnOnce() -> Stm<T>,
+    G: FnOnce() -> Stm<T>,
 {
     let mut snapshot = with_tx(|tx| tx.clone());
 
     match f() {
-        Err(StmControlError::Retry) => {
+        Err(StmControl::Retry) => {
             // Restore the original transaction state.
             with_tx(|tx| {
                 mem::swap(tx, &mut snapshot);
             });
 
             match g() {
-                retry @ Err(StmControlError::Retry) =>
+                retry @ Err(StmControl::Retry) =>
                 // Add any variable read in the first attempt.
                 {
                     with_tx(|tx| {
@@ -80,7 +80,7 @@ where
 /// Make sure `f` is free of any side effects, because it can be called repeatedly.
 pub async fn atomically<T, F>(f: F) -> T
 where
-    F: Fn() -> StmResult<T>,
+    F: Fn() -> Stm<T>,
 {
     atomically_aux(|| NoAux, |_| f()).await
 }
@@ -91,7 +91,7 @@ pub async fn atomically_aux<T, F, A, X>(aux: A, f: F) -> T
 where
     X: Aux,
     A: Fn() -> X,
-    F: Fn(&mut X) -> StmResult<T>,
+    F: Fn(&mut X) -> Stm<T>,
 {
     atomically_or_err_aux::<_, (), _, _, _>(aux, |atx| f(atx).map_err(StmError::Control))
         .await
@@ -106,7 +106,7 @@ where
 /// and also be aborted.
 pub async fn atomically_or_err<T, E, F>(f: F) -> Result<T, E>
 where
-    F: Fn() -> StmAbortable<T, E>,
+    F: Fn() -> StmResult<T, E>,
 {
     atomically_or_err_aux(|| NoAux, |_| f()).await
 }
@@ -124,7 +124,7 @@ pub async fn atomically_or_err_aux<T, E, F, A, X>(aux: A, f: F) -> Result<T, E>
 where
     X: Aux,
     A: Fn() -> X,
-    F: Fn(&mut X) -> StmAbortable<T, E>,
+    F: Fn(&mut X) -> StmResult<T, E>,
 {
     loop {
         // Install a new transaction into the thread local context.
@@ -160,11 +160,11 @@ where
                 Err(err) => {
                     atx.rollback();
                     match err {
-                        StmError::Control(StmControlError::Failure) => {
+                        StmError::Control(StmControl::Failure) => {
                             // We can retry straight away.
                             None
                         }
-                        StmError::Control(StmControlError::Retry) => {
+                        StmError::Control(StmControl::Retry) => {
                             // Wait until there's a change.
                             tx.wait().await;
                             None

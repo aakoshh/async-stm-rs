@@ -1,6 +1,6 @@
 use super::TQueueLike;
 use crate::test_queue_mod;
-use crate::{retry, StmResult, TVar};
+use crate::{retry, Stm, TVar};
 use std::any::Any;
 
 /// Unbounded queue using two vectors.
@@ -38,13 +38,13 @@ impl<T> TQueueLike<T> for TQueue<T>
 where
     T: Any + Sync + Send + Clone,
 {
-    fn write(&self, value: T) -> StmResult<()> {
+    fn write(&self, value: T) -> Stm<()> {
         let mut v = self.write.read_clone()?;
         v.push(value);
         self.write.write(v)
     }
 
-    fn read(&self) -> StmResult<T> {
+    fn read(&self) -> Stm<T> {
         let mut rv = self.read.read_clone()?;
         // Elements are stored in reverse order.
         match rv.pop() {
@@ -67,7 +67,7 @@ where
         }
     }
 
-    fn is_empty(&self) -> StmResult<bool> {
+    fn is_empty(&self) -> Stm<bool> {
         if self.read.read()?.is_empty() {
             Ok(self.write.read()?.is_empty())
         } else {
