@@ -1,6 +1,6 @@
 use super::TQueueLike;
 use crate::test_queue_mod;
-use crate::{guard, retry, StmResult, TVar};
+use crate::{guard, retry, Stm, TVar};
 use std::any::Any;
 
 /// Bounded queue using two vectors.
@@ -32,7 +32,7 @@ impl<T> TQueueLike<T> for TBQueue<T>
 where
     T: Any + Sync + Send + Clone,
 {
-    fn write(&self, value: T) -> StmResult<()> {
+    fn write(&self, value: T) -> Stm<()> {
         let capacity = self.capacity.read()?;
         guard(*capacity > 0)?;
         self.capacity.write(*capacity - 1)?;
@@ -43,7 +43,7 @@ where
         self.write.write(v)
     }
 
-    fn read(&self) -> StmResult<T> {
+    fn read(&self) -> Stm<T> {
         let capacity = self.capacity.read()?;
         self.capacity.write(*capacity + 1)?;
 
@@ -70,7 +70,7 @@ where
         }
     }
 
-    fn is_empty(&self) -> StmResult<bool> {
+    fn is_empty(&self) -> Stm<bool> {
         if self.read.read()?.is_empty() {
             Ok(self.write.read()?.is_empty())
         } else {

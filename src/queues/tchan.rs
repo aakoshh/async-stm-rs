@@ -1,6 +1,6 @@
 use super::TQueueLike;
 use crate::test_queue_mod;
-use crate::{retry, StmResult, TVar};
+use crate::{retry, Stm, TVar};
 use std::any::Any;
 
 /// A `TVar` that can be empty, or be a cons cell of an item and
@@ -50,7 +50,7 @@ where
         }
     }
 
-    fn is_empty_list(tvl: &TVar<TVarList<T>>) -> StmResult<bool> {
+    fn is_empty_list(tvl: &TVar<TVarList<T>>) -> Stm<bool> {
         let list_var = tvl.read()?;
         let list = list_var.read()?;
         match list.as_ref() {
@@ -79,7 +79,7 @@ where
     /// [ ]       [*]       [*]
     /// read0 ->  read1     write
     /// ```
-    fn read(&self) -> StmResult<T> {
+    fn read(&self) -> Stm<T> {
         let var_list = self.read.read()?;
         let list = var_list.read_clone()?;
         match list {
@@ -101,7 +101,7 @@ where
     /// [*]       [ ]       [*]
     /// read      write0 -> write1
     /// ```
-    fn write(&self, value: T) -> StmResult<()> {
+    fn write(&self, value: T) -> Stm<()> {
         let new_list_end = TVar::new(TList::TNil);
         let var_list = self.write.read()?;
         var_list.write(TList::TCons(value, new_list_end.clone()))?;
@@ -109,7 +109,7 @@ where
         Ok(())
     }
 
-    fn is_empty(&self) -> StmResult<bool> {
+    fn is_empty(&self) -> Stm<bool> {
         if TChan::<T>::is_empty_list(&self.read)? {
             TChan::<T>::is_empty_list(&self.write)
         } else {

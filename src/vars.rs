@@ -1,6 +1,6 @@
 use parking_lot::{Mutex, RwLock};
 
-use crate::{transaction::with_tx, version::Version, StmResult};
+use crate::{transaction::with_tx, version::Version, Stm};
 use std::{
     any::Any,
     marker::PhantomData,
@@ -177,22 +177,22 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
     }
 
     /// Read the value of the `TVar` as a clone, for subsequent modification. Only call this inside `atomically`.
-    pub fn read_clone(&self) -> StmResult<T> {
+    pub fn read_clone(&self) -> Stm<T> {
         with_tx(|tx| tx.read(self).map(|r| r.as_ref().clone()))
     }
 
     /// Read the value of the `TVar`. Only call this inside `atomically`.
-    pub fn read(&self) -> StmResult<Arc<T>> {
+    pub fn read(&self) -> Stm<Arc<T>> {
         with_tx(|tx| tx.read(self))
     }
 
     /// Replace the value of the `TVar`. Only call this inside `atomically`.
-    pub fn write(&self, value: T) -> StmResult<()> {
+    pub fn write(&self, value: T) -> Stm<()> {
         with_tx(move |tx| tx.write(self, value))
     }
 
     /// Apply an update on the value of the `TVar`. Only call this inside `atomically`.
-    pub fn update<F>(&self, f: F) -> StmResult<()>
+    pub fn update<F>(&self, f: F) -> Stm<()>
     where
         F: FnOnce(T) -> T,
     {
@@ -201,7 +201,7 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
     }
 
     /// Apply an update on the value of the `TVar`. Only call this inside `atomically`.
-    pub fn update_mut<F>(&self, f: F) -> StmResult<()>
+    pub fn update_mut<F>(&self, f: F) -> Stm<()>
     where
         F: FnOnce(&mut T),
     {
@@ -211,7 +211,7 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
     }
 
     /// Apply an update on the value of the `TVar` and return a value. Only call this inside `atomically`.
-    pub fn modify<F, R>(&self, f: F) -> StmResult<R>
+    pub fn modify<F, R>(&self, f: F) -> Stm<R>
     where
         F: FnOnce(T) -> (T, R),
     {
@@ -222,7 +222,7 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
     }
 
     /// Apply an update on the value of the `TVar` and return a value. Only call this inside `atomically`.
-    pub fn modify_mut<F, R>(&self, f: F) -> StmResult<R>
+    pub fn modify_mut<F, R>(&self, f: F) -> Stm<R>
     where
         F: FnOnce(&mut T) -> R,
     {
@@ -233,7 +233,7 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
     }
 
     /// Replace the value of the `TVar` and return the previous value. Only call this inside `atomically`.
-    pub fn replace(&self, value: T) -> StmResult<Arc<T>> {
+    pub fn replace(&self, value: T) -> Stm<Arc<T>> {
         let v = self.read()?;
         self.write(value)?;
         Ok(v)

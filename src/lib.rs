@@ -4,8 +4,6 @@
 #[cfg(feature = "unstable")]
 extern crate test as etest;
 
-use std::error::Error;
-
 mod ops;
 mod transaction;
 mod vars;
@@ -27,7 +25,8 @@ pub use ops::{
 #[cfg(feature = "queues")]
 pub mod queues;
 
-pub enum StmError {
+/// Transaction shortcutting signals handled by the STM framework.
+pub enum StmControl {
     /// The transaction failed because a value changed.
     /// It can be retried straight away.
     Failure,
@@ -38,24 +37,32 @@ pub enum StmError {
 }
 
 /// STM error extended with the ability to abort the transaction
-/// with a dynamic error. It is separate so that we rest assured
-/// that `atomically` will not throw an error, that only
-/// `atomically_or_err` allows abortions.
-pub enum StmDynError {
+/// with an error. It is separate so that we rest assured
+/// that [atomically] will not return an error, that only
+/// [atomically_or_err] allows abortions.
+pub enum StmError<E> {
     /// Regular error.
-    Control(StmError),
+    Control(StmControl),
     /// Abort the transaction and return an error.
-    Abort(Box<dyn Error + Send + Sync>),
+    Abort(E),
 }
 
-impl From<StmError> for StmDynError {
-    fn from(e: StmError) -> Self {
-        StmDynError::Control(e)
+/// Conversion to allow mixing methods returning [Stm]
+/// with ones returning [StmResult] using the `?` operator.
+impl<E> From<StmControl> for StmError<E> {
+    fn from(e: StmControl) -> Self {
+        StmError::Control(e)
     }
 }
 
-pub type StmResult<T> = Result<T, StmError>;
-pub type StmDynResult<T> = Result<T, StmDynError>;
+/// Type returned by STM methods that cannot be aborted,
+/// the only reason they can fail is to be retried.
+pub type Stm<T> = Result<T, StmControl>;
+
+/// Type returned by STM methods that can be aborted with an error.
+///
+/// Such methods must be executed with [atomically_or_err].
+pub type StmResult<T, E> = Result<T, StmError<E>>;
 
 #[cfg(test)]
 mod test;
