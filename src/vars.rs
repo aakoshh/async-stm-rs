@@ -11,15 +11,15 @@ use std::{
     },
 };
 
-/// Unique ID for a `TVar`.
+/// Unique ID for a [TVar].
 pub type ID = u64;
 
 /// The value can be read by many threads, so it has to be tracked by an `Arc`.
-/// Keeping it dynamic because trying to make `LVar` generic turned out to be
+/// Keeping it dynamic because trying to make [LVar] generic turned out to be
 /// a bit of a nightmare.
 type DynValue = Arc<dyn Any + Send + Sync>;
 
-/// A versioned value. It will only be accessed through a transaction and a `TVar`.
+/// A versioned value. It will only be accessed through a transaction and a [TVar].
 #[derive(Clone)]
 pub struct VVar {
     pub version: Version,
@@ -38,9 +38,9 @@ impl VVar {
     }
 }
 
-/// Using a channel to wake up tasks when a `TVar` they read changed.
+/// Using a channel to wake up tasks when a [TVar] they read changed.
 ///
-/// Sending `true` means the associated `TVar` has been updated.
+/// Sending `true` means the associated [TVar] has been updated.
 /// Sending `false` means there are too many subscribers on a variable
 /// that doesn't seem to be written to. In this case any listeners still
 /// alive can re-subscribe.
@@ -52,7 +52,7 @@ pub struct WaitQueue {
     /// unpark them, causing them to wait forever or until they time out.
     ///
     /// This can happen if the order of events on thread A and B are:
-    /// 1. `atomically` on A returns `Retry`
+    /// 1. [atomically] on A returns `Retry`
     /// 2. `commit` on B updates the versions
     /// 3. `notify` on B finds nobody in the wait queues
     /// 4. `wait` on A adds itself to the wait queues
@@ -60,7 +60,7 @@ pub struct WaitQueue {
     /// By having `notify` update the `last_written_version` we make sure that `wait` sees it.
     pub last_written_version: Version,
 
-    /// Signalers for tasks waiting for the `TVar` to get an update.
+    /// Signalers for tasks waiting for the [TVar] to get an update.
     waiting: Vec<Signaler>,
 
     /// Highest number of transactions waiting we have encountered so far.
@@ -76,13 +76,13 @@ impl WaitQueue {
         }
     }
 
-    /// Register a transaction as waiting for this `TVar` to be updated.
+    /// Register a transaction as waiting for this [TVar] to be updated.
     pub fn add(&mut self, s: Signaler) {
         self.prune();
         self.waiting.push(s)
     }
 
-    /// Signal to all waiting transactions that this `TVar` has been updated.
+    /// Signal to all waiting transactions that this [TVar] has been updated.
     pub fn notify_all(&mut self, commit_version: Version) {
         self.last_written_version = commit_version;
 
@@ -99,9 +99,9 @@ impl WaitQueue {
 
     /// Whenever we see the length of the waiting queue hit a new record,
     /// remove any waiting signalers that already had their receiver closed,
-    /// which means some other `TVar` they subscribed to has been updated.
+    /// which means some other [TVar] they subscribed to has been updated.
     ///
-    /// This is to avoid memory leaks in the wait queue of a `TVar` which
+    /// This is to avoid memory leaks in the wait queue of a [TVar] which
     /// is frequently read but never written to.
     fn prune(&mut self) {
         if self.waiting.len() > self.max_waiting {
@@ -137,7 +137,7 @@ pub struct LVar {
     pub write: bool,
 }
 
-/// `TVar` is our handle to a variable, but reading and writing go through a transaction.
+/// [TVar] is our handle to a variable, but reading and writing go through a transaction.
 /// It also tracks which threads are waiting on it.
 #[derive(Clone)]
 pub struct TVar<T> {
@@ -156,11 +156,11 @@ where
 }
 
 impl<T: Any + Sync + Send + Clone> TVar<T> {
-    /// Create a new `TVar`. The initial version is 0, so that if a
-    /// `TVar` is created in the middle of a transaction it will
+    /// Create a new [TVar]. The initial version is 0, so that if a
+    /// [TVar] is created in the middle of a transaction it will
     /// not cause any MVCC conflict during the commit.
     pub fn new(value: T) -> TVar<T> {
-        // This is shared between all `TVar`s.
+        // This is shared between all [TVar]s.
         static COUNTER: AtomicU64 = AtomicU64::new(0);
 
         TVar {
@@ -176,22 +176,22 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
         }
     }
 
-    /// Read the value of the `TVar` as a clone, for subsequent modification. Only call this inside `atomically`.
+    /// Read the value of the [TVar] as a clone, for subsequent modification. Only call this inside [atomically].
     pub fn read_clone(&self) -> Stm<T> {
         with_tx(|tx| tx.read(self).map(|r| r.as_ref().clone()))
     }
 
-    /// Read the value of the `TVar`. Only call this inside `atomically`.
+    /// Read the value of the [TVar]. Only call this inside [atomically].
     pub fn read(&self) -> Stm<Arc<T>> {
         with_tx(|tx| tx.read(self))
     }
 
-    /// Replace the value of the `TVar`. Only call this inside `atomically`.
+    /// Replace the value of the [TVar]. Only call this inside [atomically].
     pub fn write(&self, value: T) -> Stm<()> {
         with_tx(move |tx| tx.write(self, value))
     }
 
-    /// Apply an update on the value of the `TVar`. Only call this inside `atomically`.
+    /// Apply an update on the value of the [TVar]. Only call this inside [atomically].
     pub fn update<F>(&self, f: F) -> Stm<()>
     where
         F: FnOnce(T) -> T,
@@ -200,7 +200,7 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
         self.write(f(v))
     }
 
-    /// Apply an update on the value of the `TVar`. Only call this inside `atomically`.
+    /// Apply an update on the value of the [TVar]. Only call this inside [atomically].
     pub fn update_mut<F>(&self, f: F) -> Stm<()>
     where
         F: FnOnce(&mut T),
@@ -210,7 +210,7 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
         self.write(v)
     }
 
-    /// Apply an update on the value of the `TVar` and return a value. Only call this inside `atomically`.
+    /// Apply an update on the value of the [TVar] and return a value. Only call this inside [atomically].
     pub fn modify<F, R>(&self, f: F) -> Stm<R>
     where
         F: FnOnce(T) -> (T, R),
@@ -221,7 +221,7 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
         Ok(r)
     }
 
-    /// Apply an update on the value of the `TVar` and return a value. Only call this inside `atomically`.
+    /// Apply an update on the value of the [TVar] and return a value. Only call this inside [atomically].
     pub fn modify_mut<F, R>(&self, f: F) -> Stm<R>
     where
         F: FnOnce(&mut T) -> R,
@@ -232,7 +232,7 @@ impl<T: Any + Sync + Send + Clone> TVar<T> {
         Ok(r)
     }
 
-    /// Replace the value of the `TVar` and return the previous value. Only call this inside `atomically`.
+    /// Replace the value of the [TVar] and return the previous value. Only call this inside [atomically].
     pub fn replace(&self, value: T) -> Stm<Arc<T>> {
         let v = self.read()?;
         self.write(value)?;

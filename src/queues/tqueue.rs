@@ -19,7 +19,7 @@ impl<T> TQueue<T>
 where
     T: Any + Sync + Send + Clone,
 {
-    /// Create an empty `TQueue`.
+    /// Create an empty [TQueue].
     pub fn new() -> TQueue<T> {
         TQueue {
             read: TVar::new(Vec::new()),

@@ -5,7 +5,7 @@ use std::any::Any;
 
 /// Bounded queue using two vectors.
 ///
-/// Similar to `TQueue` but every read and write touches a common `TVar`
+/// Similar to [TQueue] but every read and write touches a common [TVar]
 /// to track the current capacity, retrying if the queue is full.
 #[derive(Clone)]
 pub struct TBQueue<T> {
@@ -18,7 +18,7 @@ impl<T> TBQueue<T>
 where
     T: Any + Sync + Send + Clone,
 {
-    /// Create an empty `TBQueue`.
+    /// Create an empty [TBQueue].
     pub fn new(capacity: u32) -> TBQueue<T> {
         TBQueue {
             capacity: TVar::new(capacity),

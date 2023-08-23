@@ -6,7 +6,7 @@ use std::{any::Any, collections::VecDeque};
 #[derive(Clone)]
 /// Unbounded queue backed by a single `VecDequeue`.
 ///
-/// The drawback is that reads and writes both touch the same `TVar`.
+/// The drawback is that reads and writes both touch the same [TVar].
 pub struct TVecDequeue<T> {
     queue: TVar<VecDeque<T>>,
 }
@@ -15,7 +15,7 @@ impl<T> TVecDequeue<T>
 where
     T: Any + Sync + Send + Clone,
 {
-    /// Create an empty `TVecDequeue`.
+    /// Create an empty [TVecDequeue].
     #[allow(dead_code)]
     pub fn new() -> TVecDequeue<T> {
         TVecDequeue {

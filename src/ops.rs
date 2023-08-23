@@ -30,12 +30,12 @@ where
     Err(StmError::Abort(e.into()))
 }
 
-/// Run the first function; if it returns a `Retry`,
-/// run the second function; if that too returns `Retry`
+/// Run the first function; if it returns a [StmControl::Retry],
+/// run the second function; if that too returns [StmControl::Retry]
 /// then combine the values they have read, so that
 /// the overall retry will react to any change.
 ///
-/// If they return `Failure` then just return that result,
+/// If they return [StmControl::Failure] then just return that result,
 /// since the transaction can be retried right now.
 pub fn or<F, G, T>(f: F, g: G) -> Stm<T>
 where
@@ -100,7 +100,7 @@ where
 
 /// Create a new transaction and run `f` until it returns a successful result and
 /// can be committed without running into version conflicts, or until it returns
-/// an `Abort` in which case the contained error is returned.
+/// an [StmError::Abort] in which case the contained error is returned.
 ///
 /// Make sure `f` is free of any side effects, becuase it can be called repeatedly
 /// and also be aborted.

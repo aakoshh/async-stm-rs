@@ -12,7 +12,7 @@ mod version;
 /// Auxiliary transactions.
 pub mod auxtx;
 
-/// `TVar` is the public interface to lift data into the transactional
+/// [TVar] is the public interface to lift data into the transactional
 /// context for subsequent read and write operations.
 pub use vars::TVar;
 

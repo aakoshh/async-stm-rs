@@ -189,7 +189,7 @@ mod bench {
     }
 }
 
-/// Reuse the same test definitions for each implementation of the `TQueueLike` trait
+/// Reuse the same test definitions for each implementation of the [TQueueLike] trait
 /// by calling this macro with a function to create a new instance of the queue.
 ///
 /// For example:

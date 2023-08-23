@@ -235,7 +235,7 @@ impl Transaction {
         }
     }
 
-    /// Unpark any thread waiting on any of the modified `TVar`s.
+    /// Unpark any thread waiting on any of the modified [TVar]s.
     pub(crate) fn notify(self, commit_version: Version) {
         if !self.has_writes {
             return;

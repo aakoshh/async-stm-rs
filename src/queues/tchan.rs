@@ -3,22 +3,22 @@ use crate::test_queue_mod;
 use crate::{retry, Stm, TVar};
 use std::any::Any;
 
-/// A `TVar` that can be empty, or be a cons cell of an item and
-/// the tail of the list, which is also a `TVarList`.
+/// A [TVar] that can be empty, or be a cons cell of an item and
+/// the tail of the list, which is also a [TVarList].
 type TVarList<T> = TVar<TList<T>>;
 
-/// A linked list of `TVar`s.
+/// A linked list of [TVar]s.
 #[derive(Clone)]
 enum TList<T> {
     TNil,
     TCons(T, TVarList<T>),
 }
 
-/// Ubounded queue using a linked list of `TVar`s.
+/// Ubounded queue using a linked list of [TVar]s.
 ///
-/// This implementation builds up a linked list of `TVar`s with a
+/// This implementation builds up a linked list of [TVar]s with a
 /// read and a write pointer. The good thing is that the reads don't
-/// cause retries in writes, unlike if it was just a single `TVar`
+/// cause retries in writes, unlike if it was just a single [TVar]
 /// with one data structure in it. It may also help that it's more
 /// granular, and `Transaction::downcast` will not clone a full
 /// data structure.
@@ -32,9 +32,9 @@ impl<T> TChan<T>
 where
     T: Any + Sync + Send + Clone,
 {
-    /// Create an empty `TChan`.
+    /// Create an empty [TChan].
     ///
-    /// Both read and write `TVar`s will be pointing at a common `TVar`
+    /// Both read and write [TVar]s will be pointing at a common [TVar]
     /// containing an empty list.
     /// ```text
     ///    [TNil]
@@ -72,7 +72,7 @@ where
 {
     /// Pop the head of the queue, or retry until there is an element if it's empty.
     ///
-    /// Moves the read `TVar` down the list to point at the next item.
+    /// Moves the read [TVar] down the list to point at the next item.
     /// ```text
     ///  [TCons(x, [TCons(y, [TNil])])]
     ///  |         |         |
@@ -93,8 +93,8 @@ where
 
     /// Push to the end of the queue.
     ///
-    /// Replaces the contents of the current write `TVar` with a `TCons` and points
-    /// the write `TVar` at a new `TNil`.
+    /// Replaces the contents of the current write [TVar] with a [TList::TCons] and points
+    /// the write [TVar] at a new [TList::TNil].
     /// ```text
     ///  [TCons(x, [TCons(y, [TNil])])]
     ///  |         |         |

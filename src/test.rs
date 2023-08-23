@@ -169,11 +169,11 @@ async fn new_tvar_in_transaction() {
 async fn nested_atomically() {
     let x = TVar::new(0);
 
-    // NOTE: Nesting `atomically` used to panic,
+    // NOTE: Nesting [atomically] used to panic,
     // but now that it's async it's not immediately executed,
-    // and since `atomically` only takes normal functions,
+    // and since [atomically] only takes normal functions,
     // trying to execute one within the other would not compile.
-    // However, we can return a future from an `atomically` block
+    // However, we can return a future from an [atomically] block
     // to be executed outside of it.
     let a = atomically(|| {
         x.write(1)?;
