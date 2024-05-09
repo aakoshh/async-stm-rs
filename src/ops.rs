@@ -127,57 +127,77 @@ where
     F: Fn(&mut X) -> StmResult<T, E>,
 {
     loop {
-        // Install a new transaction into the thread local context.
-        TX.with(|tref| {
-            let mut t = tref.borrow_mut();
-            if t.is_some() {
-                // Nesting is not supported. Use `or` instead.
-                panic!("Already running in an atomic transaction!")
+        match exec_once(&aux, &f) {
+            ExecResult::Committed(value) => return Ok(value),
+            ExecResult::Abort(e) => return Err(e),
+            ExecResult::Restart => {}
+            ExecResult::Wait(tx) => tx.wait().await,
+        }
+    }
+}
+
+enum ExecResult<T, E> {
+    Committed(T),
+    Abort(E),
+    Restart,
+    Wait(Transaction),
+}
+
+/// Execute the STM transaction once, returning the outcome.
+///
+/// This method is synchronous, which has the effect of not requiring `X` to be `Send` and `Sync`,
+/// which would be the case if it was created in [atomically_or_err_aux].
+fn exec_once<T, E, F, A, X>(aux: &A, f: &F) -> ExecResult<T, E>
+where
+    X: Aux,
+    A: Fn() -> X,
+    F: Fn(&mut X) -> StmResult<T, E>,
+{
+    // Install a new transaction into the thread local context.
+    TX.with(|tref| {
+        let mut t = tref.borrow_mut();
+        if t.is_some() {
+            // Nesting is not supported. Use `or` instead.
+            panic!("Already running in an atomic transaction!")
+        }
+        *t = Some(Transaction::new());
+    });
+
+    // Create a new auxiliary transaction.
+    let mut atx = aux();
+
+    // Run one attempt of the atomic operation.
+    let result = f(&mut atx);
+
+    // Take the transaction from the thread local, leaving it empty.
+    let tx = TX.with(|tref| tref.borrow_mut().take().unwrap());
+
+    // See if we manage to commit some value.
+    match result {
+        Ok(value) => {
+            if let Some(version) = tx.commit(atx) {
+                tx.notify(version);
+                ExecResult::Committed(value)
+            } else {
+                ExecResult::Restart
             }
-            *t = Some(Transaction::new());
-        });
-
-        // Create a new auxiliary transaction.
-        let mut atx = aux();
-
-        // Run one attempt of the atomic operation.
-        let result = f(&mut atx);
-
-        // Take the transaction from the thread local, leaving it empty.
-        let tx = TX.with(|tref| tref.borrow_mut().take().unwrap());
-
-        // See if we manage to commit some value.
-        if let Some(value) = {
-            match result {
-                Ok(value) => {
-                    if let Some(version) = tx.commit(atx) {
-                        tx.notify(version);
-                        Some(Ok(value))
-                    } else {
-                        None
-                    }
+        }
+        Err(err) => {
+            atx.rollback();
+            match err {
+                StmError::Control(StmControl::Failure) => {
+                    // We can retry straight away.
+                    ExecResult::Restart
                 }
-                Err(err) => {
-                    atx.rollback();
-                    match err {
-                        StmError::Control(StmControl::Failure) => {
-                            // We can retry straight away.
-                            None
-                        }
-                        StmError::Control(StmControl::Retry) => {
-                            // Wait until there's a change.
-                            tx.wait().await;
-                            None
-                        }
-                        StmError::Abort(e) => {
-                            // Don't retry, return the error to the caller.
-                            Some(Err(e))
-                        }
-                    }
+                StmError::Control(StmControl::Retry) => {
+                    // Wait until there's a change.
+                    ExecResult::Wait(tx)
+                }
+                StmError::Abort(e) => {
+                    // Don't retry, return the error to the caller.
+                    ExecResult::Abort(e)
                 }
             }
-        } {
-            return value;
         }
     }
 }
